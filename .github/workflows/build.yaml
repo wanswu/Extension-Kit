@@ -31,28 +31,12 @@ jobs:
         find . -name "*_beacon.json" -exec cp {} release/ \;  
         tar -czf extension-kit-${{ github.sha }}.tar.gz release/  
 
-    - name: Set Timestamp
-      id: timestamp
-      run: echo "TIMESTAMP=$(date +'%Y%m%d-%H%M%S')" >> $GITHUB_ENV
-
-    - name: Create Release  
-      if: github.event_name == 'push' && github.ref == 'refs/heads/main'  
-      uses: actions/create-release@v1  
-      env:  
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  
-      with:  
-        tag_name: v${{ env.TIMESTAMP }}  
-        release_name: Extension-Kit Release v${{ env.TIMESTAMP }}  
-        draft: false  
-        prerelease: false  
-
-    - name: Upload Release Asset  
-      if: github.event_name == 'push' && github.ref == 'refs/heads/main'  
-      uses: actions/upload-release-asset@v1  
-      env:  
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  
-      with:  
-        upload_url: ${{ steps.create_release.outputs.upload_url }}  
-        asset_path: ./extension-kit-${{ github.sha }}.tar.gz  
-        asset_name: extension-kit-${{ github.sha }}.tar.gz  
+    - name: Upload to GitHub Release
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ github.event.release.upload_url }} # 假设在 release 事件触发
+        asset_path: extension-kit-${{ github.sha }}.tar.gz
+        asset_name: extension-kit-${{ github.sha }}.tar.gz
         asset_content_type: application/gzip
