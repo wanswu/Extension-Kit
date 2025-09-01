@@ -1,42 +1,50 @@
-name: Build and Release Extension-Kit  
+name: Build and Release
 
-on:  
-  push:  
-    branches: [ main, dev ]  
-  pull_request:  
-    branches: [ main ]  
-  release:  
-    types: [created]  
+on:
+  push:
+    branches:
+      - main
 
-jobs:  
-  build:  
-    runs-on: ubuntu-latest  
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    steps:  
-    - uses: actions/checkout@v3  
+      - name: Install MinGW  
+        run: |  
+          sudo apt-get update  
+          sudo apt-get install -y make mingw-w64 python3
 
-    - name: Install MinGW  
-      run: |  
-        sudo apt-get update  
-        sudo apt-get install -y make mingw-w64 python3
+      - name: Build BOFs  
+        run: |  
+          make
 
-    - name: Build BOFs  
-      run: |  
-        make
+      - name: Package Release  
+        run: |  
+          mkdir -p release  
+          find . -name "*.o" -exec cp {} release/ \;  
+          find . -name "*_beacon.json" -exec cp {} release/ \;  
+          tar -czf extension-kit-${{ github.sha }}.tar.gz release/
 
-    - name: Package Release  
-      run: |  
-        mkdir -p release  
-        find . -name "*.o" -exec cp {} release/ \;  
-        find . -name "*_beacon.json" -exec cp {} release/ \;  
-        tar -czf extension-kit-${{ github.sha }}.tar.gz release/  
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v${{ github.run_number }}
+          release_name: Release v${{ github.run_number }}
+          draft: false
+          prerelease: false
 
-    - name: Upload to GitHub Release
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ github.event.release.upload_url }} # 假设在 release 事件触发
-        asset_path: extension-kit-${{ github.sha }}.tar.gz
-        asset_name: extension-kit-${{ github.sha }}.tar.gz
-        asset_content_type: application/gzip
+      - name: Upload to GitHub Release
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }} # 使用创建的 Release 的 upload_url
+          asset_path: extension-kit-${{ github.sha }}.tar.gz
+          asset_name: extension-kit-${{ github.sha }}.tar.gz
+          asset_content_type: application/gzip
