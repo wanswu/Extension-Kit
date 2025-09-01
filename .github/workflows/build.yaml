@@ -1,5 +1,5 @@
 name: Build and Release Extension-Kit  
-  
+
 on:  
   push:  
     branches: [ main, dev ]  
@@ -7,41 +7,45 @@ on:
     branches: [ main ]  
   release:  
     types: [created]  
-  
+
 jobs:  
   build:  
     runs-on: ubuntu-latest  
-      
+
     steps:  
     - uses: actions/checkout@v3  
-      
+
     - name: Install MinGW  
       run: |  
         sudo apt-get update  
-        sudo apt-get install -y mingw-w64  
-      
+        sudo apt-get install -y make mingw-w64 python3
+
     - name: Build BOFs  
       run: |  
         make
-      
+
     - name: Package Release  
       run: |  
         mkdir -p release  
         find . -name "*.o" -exec cp {} release/ \;  
         find . -name "*_beacon.json" -exec cp {} release/ \;  
         tar -czf extension-kit-${{ github.sha }}.tar.gz release/  
-      
+
+    - name: Set Timestamp
+      id: timestamp
+      run: echo "TIMESTAMP=$(date +'%Y%m%d-%H%M%S')" >> $GITHUB_ENV
+
     - name: Create Release  
       if: github.event_name == 'push' && github.ref == 'refs/heads/main'  
       uses: actions/create-release@v1  
       env:  
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  
       with:  
-        tag_name: v${{ github.run_number }}  
-        release_name: Extension-Kit Release v${{ github.run_number }}  
+        tag_name: v${{ env.TIMESTAMP }}  
+        release_name: Extension-Kit Release v${{ env.TIMESTAMP }}  
         draft: false  
         prerelease: false  
-      
+
     - name: Upload Release Asset  
       if: github.event_name == 'push' && github.ref == 'refs/heads/main'  
       uses: actions/upload-release-asset@v1  
