@@ -3,101 +3,47 @@ name: Build and Release Extension-Kit
 on:  
   push:  
     branches: [ main, dev ]  
-    tags:  
-      - 'v*'  
   pull_request:  
     branches: [ main ]  
+  release:  
+    types: [created]  
   
 jobs:  
   build:  
     runs-on: ubuntu-latest  
       
     steps:  
-    - name: Checkout code  
-      uses: actions/checkout@v4  
+    - uses: actions/checkout@v3  
       
     - name: Install MinGW  
       run: |  
         sudo apt-get update  
         sudo apt-get install -y mingw-w64  
       
-    - name: Compile all plugins  
+    - name: Build BOFs  
       run: |  
-        # List of directories with Makefiles  
-        PLUGIN_DIRS=(  
-          "AD-BOF"  
-          "Creds-BOF"  
-          "Elevation-BOF"  
-          "Execution-BOF"  
-          "Injection-BOF"  
-          "Kerbeus-BOF"  
-          "LateralMovement-BOF"  
-          "Postex-BOF"  
-          "Process-BOF"  
-          "SAL-BOF"  
-          "SAR-BOF"  
-        )  
-  
-        for dir in "${PLUGIN_DIRS[@]}"; do  
-          if [ -f "$dir/Makefile" ]; then  
-            echo "--- Compiling in $dir ---"  
-            (cd "$dir" && make)  
-            echo "--- Finished compiling in $dir ---"  
-            echo ""  
-          else  
-            echo "--- Makefile not found in $dir, skipping. ---"  
-          fi  
-        done  
+        make
       
     - name: Package Release  
       run: |  
         mkdir -p release  
-        # Copy all compiled BOF files  
         find . -name "*.o" -exec cp {} release/ \;  
-        # Copy all beacon configuration files  
         find . -name "*_beacon.json" -exec cp {} release/ \;  
-        # Copy README files for documentation  
-        find . -name "README.md" -exec cp {} release/ \;  
-        # Create compressed archive  
         tar -czf extension-kit-${{ github.sha }}.tar.gz release/  
       
-    - name: Upload build artifacts  
-      uses: actions/upload-artifact@v4  
-      with:  
-        name: extension-kit-build  
-        path: extension-kit-${{ github.sha }}.tar.gz  
-      
     - name: Create Release  
-      if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/'))  
-      id: create_release  
+      if: github.event_name == 'push' && github.ref == 'refs/heads/main'  
       uses: actions/create-release@v1  
       env:  
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  
       with:  
-        tag_name: ${{ github.ref_name != 'main' && github.ref_name || format('v{0}', github.run_number) }}  
-        release_name: Extension-Kit Release ${{ github.ref_name != 'main' && github.ref_name || format('v{0}', github.run_number) }}  
-        body: |  
-          ## Extension-Kit Release  
-            
-          This release contains compiled BOF files for all Extension-Kit modules:  
-          - AD-BOF: Active Directory enumeration and attack methods  
-          - Creds-BOF: Password harvesting tools  
-          - Elevation-BOF: Context elevation BOFs  
-          - Execution-BOF: Inline execution BOFs  
-          - Injection-BOF: Process injection BOFs  
-          - Kerbeus-BOF: Kerberos attack tools  
-          - LateralMovement-BOF: Lateral movement techniques  
-          - Postex-BOF: Post-exploitation tools  
-          - Process-BOF: Process situational awareness  
-          - SAL-BOF: Local situational awareness  
-          - SAR-BOF: Remote situational awareness  
-            
-          Built from commit: ${{ github.sha }}  
+        tag_name: v${{ github.run_number }}  
+        release_name: Extension-Kit Release v${{ github.run_number }}  
         draft: false  
-        prerelease: ${{ github.ref == 'refs/heads/dev' }}  
+        prerelease: false  
       
     - name: Upload Release Asset  
-      if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/'))  
+      if: github.event_name == 'push' && github.ref == 'refs/heads/main'  
       uses: actions/upload-release-asset@v1  
       env:  
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  
@@ -105,22 +51,4 @@ jobs:
         upload_url: ${{ steps.create_release.outputs.upload_url }}  
         asset_path: ./extension-kit-${{ github.sha }}.tar.gz  
         asset_name: extension-kit-${{ github.sha }}.tar.gz  
-        asset_content_type: application/gzip  
-  
-  test:  
-    runs-on: ubuntu-latest  
-    needs: build  
-      
-    steps:  
-    - name: Checkout code  
-      uses: actions/checkout@v4  
-      
-    - name: Download build artifacts  
-      uses: actions/download-artifact@v4  
-      with:  
-        name: extension-kit-build  
-      
-    - name: Verify build artifacts  
-      run: |  
-        tar -tzf extension-kit-${{ github.sha }}.tar.gz  
-        echo "Build verification completed"
+        asset_content_type: application/gzip
