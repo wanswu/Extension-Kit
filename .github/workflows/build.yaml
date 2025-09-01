@@ -25,7 +25,7 @@ jobs:
         run: |
           mkdir -p release
           find . -type f -name "*.axs" -exec cp --parents {} release/ \;
-          find . -type d -name "_bin" -exec find {} -type f -name "*.o" -exec cp --parents {} release/ \;
+          find . -type f -path "*/_bin/*.o" -exec cp -i --parents {} release/ \;
           tar -czf extension-kit-${{ github.sha }}.tar.gz -C release .
 
       - name: Create Release
