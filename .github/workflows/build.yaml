@@ -24,7 +24,7 @@ jobs:
       - name: Package Release
         run: |
           mkdir -p release
-          cp * release
+          cp -r * release
           tar -czf extension-kit-${{ github.sha }}.tar.gz -C release .
 
       - name: Create Release
