@@ -24,7 +24,8 @@ jobs:
       - name: Package Release
         run: |
           mkdir -p release
-          rsync -av --include '*.axs' --include '_bin/' --exclude 'release/' --exclude '*' . release
+          find . -type f -name "*.axs" -exec cp --parents {} release/ \;
+          find . -type d -name "_bin" -exec find {} -type f -name "*.o" -exec cp --parents {} release/ \;
           tar -czf extension-kit-${{ github.sha }}.tar.gz -C release .
 
       - name: Create Release
