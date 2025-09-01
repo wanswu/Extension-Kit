@@ -24,7 +24,8 @@ jobs:
       - name: Package Release
         run: |
           mkdir -p release
-          rsync -av --exclude 'release/' --exclude '_img/' --exclude '.gitignore' --exclude 'LICENSE' --exclude 'Makefile' --exclude 'README.md' . release
+          rsync -av --exclude 'release/' --include '_bin/' --include '*.axs' . release
+          # rsync -av --exclude 'release/' --exclude '_img/' --exclude '.gitignore' --exclude 'LICENSE' --exclude 'Makefile' --exclude 'README.md' . release
           tar -czf extension-kit-${{ github.sha }}.tar.gz -C release .
 
       - name: Create Release
