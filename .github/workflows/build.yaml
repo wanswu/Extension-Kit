@@ -1,3 +1,4 @@
+```yaml
 name: Build and Release
 
 on:
@@ -12,21 +13,26 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Install MinGW  
-        run: |  
-          sudo apt-get update  
+      - name: Install MinGW
+        run: |
+          sudo apt-get update
           sudo apt-get install -y make mingw-w64 python3
 
-      - name: Build BOFs  
-        run: |  
+      - name: Build BOFs
+        run: |
           make
 
-      - name: Package Release  
-        run: |  
-          mkdir -p release  
-          find . -name "*.o" -exec cp {} release/ \;  
-          find . -name "*_beacon.json" -exec cp {} release/ \;  
-          tar -czf extension-kit-${{ github.sha }}.tar.gz release/
+      - name: Package Release
+        run: |
+          mkdir -p release
+          # 假设模块文件位于不同的子目录，遍历每个子目录
+          find . -type d -name "src*" | while read -r dir; do
+            module_name=$(basename "$dir")
+            mkdir -p "release/$module_name"
+            find "$dir" -name "*.o" -exec cp {} "release/$module_name/" \;
+            find "$dir" -name "*.axs" -exec cp {} "release/$module_name/" \;
+          done
+          tar -czf extension-kit-${{ github.sha }}.tar.gz -C release .
 
       - name: Create Release
         id: create_release
@@ -44,7 +50,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }} # 使用创建的 Release 的 upload_url
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
           asset_path: extension-kit-${{ github.sha }}.tar.gz
           asset_name: extension-kit-${{ github.sha }}.tar.gz
           asset_content_type: application/gzip
+```
