@@ -1,4 +1,3 @@
-```yaml
 name: Build and Release
 
 on:
@@ -25,7 +24,7 @@ jobs:
       - name: Package Release
         run: |
           mkdir -p release
-          # 假设模块文件位于不同的子目录，遍历每个子目录
+          # 遍历 src* 目录，将每个模块的文件复制到 release 中对应的子目录
           find . -type d -name "src*" | while read -r dir; do
             module_name=$(basename "$dir")
             mkdir -p "release/$module_name"
@@ -54,4 +53,3 @@ jobs:
           asset_path: extension-kit-${{ github.sha }}.tar.gz
           asset_name: extension-kit-${{ github.sha }}.tar.gz
           asset_content_type: application/gzip
-```
