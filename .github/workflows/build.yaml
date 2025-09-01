@@ -24,13 +24,7 @@ jobs:
       - name: Package Release
         run: |
           mkdir -p release
-          # 遍历 src* 目录，将每个模块的文件复制到 release 中对应的子目录
-          find . -type d -name "src*" | while read -r dir; do
-            module_name=$(basename "$dir")
-            mkdir -p "release/$module_name"
-            find "$dir" -name "*.o" -exec cp {} "release/$module_name/" \;
-            find "$dir" -name "*.axs" -exec cp {} "release/$module_name/" \;
-          done
+          cp * release
           tar -czf extension-kit-${{ github.sha }}.tar.gz -C release .
 
       - name: Create Release
