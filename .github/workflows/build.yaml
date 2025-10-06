@@ -1,9 +1,8 @@
 name: Build and Release
 
 on:
-  push:
-    branches:
-      - main
+  workflow_dispatch:
+  workflow_call:  # 允许被其他工作流调用
 
 jobs:
   build-and-release:

@@ -120,3 +120,42 @@ jobs:
           git status
           exit 1
         fi
+
+  build-all:
+    name: Build all platforms
+    needs: check-and-sync
+    if: needs.check-and-sync.outputs.has_updates == 'true'
+    uses: ./.github/workflows/build.yml
+    secrets: inherit
+
+  create-report:
+    name: Create daily report
+    needs: [check-and-sync]
+    if: always()
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Create summary report
+      run: |
+        echo "# 📊 每日自动更新和构建报告" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**执行时间**: $(date '+%Y-%m-%d %H:%M:%S')" >> $GITHUB_STEP_SUMMARY
+        echo "**触发方式**: ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        if [ "${{ needs.check-and-sync.outputs.has_updates }}" == "true" ]; then
+          if [ "${{ needs.check-and-sync.outputs.commits_behind }}" -gt 0 ]; then
+            echo "## ✅ 检测到更新并开始构建" >> $GITHUB_STEP_SUMMARY
+            echo "- 落后提交数: ${{ needs.check-and-sync.outputs.commits_behind }}" >> $GITHUB_STEP_SUMMARY
+            echo "- 最新提交: ${{ needs.check-and-sync.outputs.commit_message }}" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "## ⚡ 强制构建" >> $GITHUB_STEP_SUMMARY
+            echo "- 没有新的上游提交，但执行了强制构建" >> $GITHUB_STEP_SUMMARY
+          fi
+        else
+          echo "## ✅ 检查完成 - 无需更新" >> $GITHUB_STEP_SUMMARY
+          echo "- **您的仓库已是最新状态**" >> $GITHUB_STEP_SUMMARY
+          echo "- **无需执行构建**" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "下次自动检查时间：明日同一时间" >> $GITHUB_STEP_SUMMARY
+        fi
