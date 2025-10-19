@@ -125,7 +125,7 @@ jobs:
     name: Build all platforms
     needs: check-and-sync
     if: needs.check-and-sync.outputs.has_updates == 'true'
-    uses: ./.github/workflows/build.yml
+    uses: ./.github/workflows/build.yaml
     secrets: inherit
 
   create-report:
