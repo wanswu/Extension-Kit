@@ -376,6 +376,7 @@ _CleanUp:
 
 void go(char* args, int alen)
 {
+	token_value = 0;
 	datap parser;
 	BeaconDataParse(&parser, args, alen);
 	ULONG useToken  = BeaconDataInt(&parser);
