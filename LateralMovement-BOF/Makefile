@@ -28,7 +28,7 @@ bof: clean
 	@($(CC86) $(CFLAGS) token_make/token_make.c    -o _bin/token_make.x32.o  && $(STRIP86) _bin/token_make.x32.o)  && echo '[+] token_make (x32)'  || echo '[!] token_make (x32)'
 	@($(CC86) $(CFLAGS) token_steal/token_steal.c  -o _bin/token_steal.x32.o && $(STRIP86) _bin/token_steal.x32.o) && echo '[+] token_steal (x32)' || echo '[!] token_steal (x32)'
 	@($(CC86) $(CFLAGS) runas/runas.c              -o _bin/runas.x32.o       && $(STRIP86) _bin/runas.x32.o)       && echo '[+] runas (x32)'       || echo '[!] runas (x32)'
-	# The below command was failed, so commented it out
+	# The below command was failed, so temporarily commented it out
 	# @($(CPP86) -I ../_include -w -Os -s -c -masm=intel -nostdlib -Wno-nonnull -fno-asynchronous-unwind-tables -fno-exceptions -fno-rtti winrm-client/winrm.cpp -o _bin/winrm.x32.o && $(STRIP86) _bin/winrm.x32.o) && echo '[+] winrm (x32)' || echo '[!] winrm (x32)'
 
 clean:
