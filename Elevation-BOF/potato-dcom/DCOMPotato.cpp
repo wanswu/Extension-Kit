@@ -14,6 +14,7 @@ DWORD token_value __attribute__((section (".data"))) = 0;
 
 bool IsTokenSystem(HANDLE hToken)
 {
+	token_value = 0;
 	DWORD Size, UserSize, DomainSize;
 	SID* sid;
 	SID_NAME_USE SidType;
@@ -376,7 +377,6 @@ _CleanUp:
 
 void go(char* args, int alen)
 {
-	token_value = 0;
 	datap parser;
 	BeaconDataParse(&parser, args, alen);
 	ULONG useToken  = BeaconDataInt(&parser);

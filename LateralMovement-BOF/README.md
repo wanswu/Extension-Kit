@@ -53,7 +53,6 @@ invoke winrm <computer> <command> [-t timeout_ms] [-b]
 Note: when using flags and a command with spaces, quote the command and place flags after it.
 
 
-
 ## invoke scshell
 
 Execute commands on remote systems by temporarily modifying a service.
@@ -80,16 +79,26 @@ Choose services that:
 
 
 
-## runas
+## runas-user
 
 Runas is a BOF to run specific processes with different permissions than the user's current logon provides using explicit credentials.
 
 ```Shell
-runas <username> <password> <domain> <command> [-l logon_type] [-t timeout] [-o] [-b]
+runas-user <username> <password> <domain> <command> [-l logon_type] [-t timeout] [-o] [-b]
 ```
 
 * `-o` - With output capture
 * `-b` - Bypass UAC (use with admin credentials)
+
+
+
+## runas-session
+
+Execute binary in another user's session via IHxHelpPaneServer COM.
+
+```Shell
+runas-session <session_id> <filepath>
+```
 
 
 

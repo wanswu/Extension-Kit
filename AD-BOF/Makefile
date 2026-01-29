@@ -6,6 +6,7 @@ CFLAGS = -I ../_include -Os -masm=intel -DBOF -c
 all: bof
 
 bof: clean
+	# 64-bit builds
 	@(mkdir _bin 2>/dev/null) && echo 'creating _bin directory' || echo '_bin directory exists'
 	@($(CC64) $(CFLAGS) ldapsearch/ldapsearch.c -o _bin/ldapsearch.x64.o && $(STRIP64) _bin/ldapsearch.x64.o) && echo '[+] ldapsearch' || echo '[!] ldapsearch'
 	@($(CC64) $(CFLAGS) adwssearch/adws_search.c -o _bin/adws_search.x64.o && $(STRIP64) _bin/adws_search.x64.o) && echo '[+] adws_search' || echo '[!] adws_search'

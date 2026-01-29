@@ -7,8 +7,6 @@ CFLAGS = -I ../_include -w -Wno-incompatible-pointer-types -Os -DBOF -c
 all: bof
 
 bof: clean
-	@(mkdir _bin 2>/dev/null) && echo 'creating _bin directory' || echo '_bin directory exists'
-
 	# 64-bit builds
 	@($(CC64) $(CFLAGS) arp/arp.c -o _bin/arp.x64.o && $(STRIP64) _bin/arp.x64.o) && echo '[+] arp x64' || echo '[!] arp x64'
 	@($(CC64) $(CFLAGS) cacls/cacls.c -o _bin/cacls.x64.o && $(STRIP64) _bin/cacls.x64.o) && echo '[+] cacls x64' || echo '[!] cacls x64'
@@ -38,7 +36,7 @@ bof: clean
 	@($(CC86) $(CFLAGS) ipconfig/ipconfig.c -o _bin/ipconfig.x32.o && $(STRIP86) _bin/ipconfig.x32.o) && echo '[+] ipconfig x32' || echo '[!] ipconfig x32'
 	@($(CC86) $(CFLAGS) listdns/listdns.c -o _bin/listdns.x32.o && $(STRIP86) _bin/listdns.x32.o) && echo '[+] listdns x32' || echo '[!] listdns x32'
 	@($(CC86) $(CFLAGS) netstat/netstat.c -o _bin/netstat.x32.o && $(STRIP86) _bin/netstat.x32.o) && echo '[+] netstat x32' || echo '[!] netstat x32'
-	@($(CC86) $(CFLAGS) -fno-jump-tables nslookup/nslookup.c -o _bin/nslookup.x32.o && $(STRIP86) _bin/nslookup.x32.o) && echo '[+] nslookup x32' || echo '[!] nslookup x32'
+	@#($(CC86) $(CFLAGS) -fno-jump-tables nslookup/nslookup.c -o _bin/nslookup.x32.o && $(STRIP86) _bin/nslookup.x32.o) && echo '[+] nslookup x32' || echo '[!] nslookup x32'
 	@($(CC86) $(CFLAGS) routeprint/routeprint.c -o _bin/routeprint.x32.o && $(STRIP86) _bin/routeprint.x32.o) && echo '[+] routeprint x32' || echo '[!] routeprint x32'
 	@($(CC86) $(CFLAGS) uptime/uptime.c -o _bin/uptime.x32.o && $(STRIP86) _bin/uptime.x32.o) && echo '[+] uptime x32' || echo '[!] uptime x32'
 	@($(CC86) $(CFLAGS) useridletime/useridletime.c -o _bin/useridletime.x32.o && $(STRIP86) _bin/useridletime.x32.o) && echo '[+] useridletime x32' || echo '[!] useridletime x32'
@@ -49,6 +47,5 @@ bof: clean
 	@($(CC86) $(CFLAGS) privcheck/tokenprivileges.c -o _bin/tokenpriv.x32.o && $(STRIP86) _bin/tokenpriv.x32.o) && echo '[+] tokenpriv x32' || echo '[!] tokenpriv x32'
 	@($(CC86) $(CFLAGS) privcheck/unattendfiles.c -o _bin/unattendfiles.x32.o && $(STRIP86) _bin/unattendfiles.x32.o) && echo '[+] unattendfiles x32' || echo '[!] unattendfiles x32'
 	@($(CC86) $(CFLAGS) privcheck/unquotedsvcpath.c -o _bin/unquotedsvc.x32.o && $(STRIP86) _bin/unquotedsvc.x32.o) && echo '[+] unquotedsvc x32' || echo '[!] unquotedsvc x32'
-
 clean:
 	@(rm -rf _bin)
