@@ -157,6 +157,9 @@ _cmd_token_steal.setPreHook(function (id, cmdline, parsed_json, ...parsed_lines)
 var cmd_token = ax.create_command("token", "Impersonate token");
 cmd_token.addSubCommands([_cmd_token_make, _cmd_token_steal]);
 
+var cmd_token_x = ax.create_command("token-x", "Impersonate token");
+cmd_token_x.addSubCommands([_cmd_token_make, _cmd_token_steal]);
+
 
 
 var cmd_runas_user = ax.create_command("runas-user", "Run a command as another user using explicit credentials (RunasCs-like)", "runas admin P@ssword domain.local \"cmd /c whoami\" -l 9 -t 30000 -o -b");
@@ -208,12 +211,15 @@ cmd_runas_session.setPreHook(function (id, cmdline, parsed_json, ...parsed_lines
 
 
 
-var group_test = ax.create_commands_group("LateralMovement-BOF", [cmd_jump, cmd_invoke, cmd_token, cmd_runas_user, cmd_runas_session]);
-ax.register_commands_group(group_test, ["beacon", "gopher", "kharon"], ["windows"], []);
+var group_lateral = ax.create_commands_group("LateralMovement-BOF", [cmd_jump, cmd_invoke, cmd_token, cmd_runas_user, cmd_runas_session]);
+ax.register_commands_group(group_lateral, ["beacon", "gopher"], ["windows"], []);
+
+var group_lateral_x = ax.create_commands_group("LateralMovement-BOF-X", [cmd_jump, cmd_invoke, cmd_token_x, cmd_runas_user, cmd_runas_session]);
+ax.register_commands_group(group_lateral_x, ["kharon"], ["windows"], []);
 
 
 
-/// MENU PROCESS
+/// MENU
 
 let token_steal_action = menu.create_action("Steal token", function(process_list) {
     if (process_list.length > 0 ) {
@@ -221,7 +227,7 @@ let token_steal_action = menu.create_action("Steal token", function(process_list
         ax.execute_command(proc.agent_id, "token steal " + proc.pid);
     }
 });
-menu.add_processbrowser(token_steal_action, ["beacon", "gopher", "kharon"], ["windows"]);
+menu.add_processbrowser(token_steal_action, ["beacon", "gopher"], ["windows"]);
 
 let token_make_action = menu.create_action("Make token", function(agent_list) {
     if (agent_list.length > 0 ) {
@@ -278,7 +284,7 @@ let token_make_action = menu.create_action("Make token", function(agent_list) {
         }
     }
 });
-menu.add_session_access(token_make_action, ["beacon", "gopher", "kharon"], ["windows"]);
+menu.add_session_access(token_make_action, ["beacon", "gopher"], ["windows"]);
 
 
 
