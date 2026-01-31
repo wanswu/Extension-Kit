@@ -18,6 +18,7 @@ jobs:
 
       - name: Build BOFs
         run: |
+          sudo chmod +x add_agent.sh && sudo bash add_agent.sh
           make
 
       - name: Package Release
