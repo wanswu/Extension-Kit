@@ -14,7 +14,7 @@ jobs:
       - name: Install MinGW
         run: |
           sudo apt-get update
-          sudo apt install g++-mingw-w64-x86-64-posix  gcc-mingw-w64-x86-64-posix  mingw-w64-tools
+          sudo apt install g++-mingw-w64-x86-64-posix  gcc-mingw-w64-x86-64-posix g++-mingw-w64-i686-posix gcc-mingw-w64-i686-posix  mingw-w64-tools
 
       - name: Build BOFs
         run: |
