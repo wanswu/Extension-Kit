@@ -15,10 +15,26 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      # 1. 插入缓存步骤
+      - name: Cache Apt Packages
+        id: cache-apt
+        uses: actions/cache@v4
+        with:
+          # 缓存 apt 的下载目录
+          path: /var/cache/apt/archives
+          # key 中包含操作系统和哈希值，确保环境变化时更新缓存
+          key: ${{ runner.os }}-apt-mingw-${{ hashFiles('**/add_agent.sh') }} # 或者手动指定版本号 v1
+          restore-keys: |
+            ${{ runner.os }}-apt-mingw-
+
+      # 2. 安装步骤（略微调整）
       - name: Install MinGW
-        # 增加 -y --no-install-recommends 减少不必要的依赖，加快速度
         run: |
           sudo apt-get update
+          # 确保缓存目录存在并有权限
+          sudo mkdir -p /var/cache/apt/archives
+          
+          # 安装时 apt 会自动检查 archives 目录，如果有缓存文件则跳过下载
           sudo apt-get install -y --no-install-recommends \
             g++-mingw-w64-x86-64-posix gcc-mingw-w64-x86-64-posix \
             g++-mingw-w64-i686-posix gcc-mingw-w64-i686-posix \
@@ -28,7 +44,6 @@ jobs:
         # 移除 sudo，脚本应在当前用户权限下运行
         # 确保 make 出错时立即停止 (set -e 是默认行为，但脚本内部需要注意)
         run: |
-          chmod +x add_agent.sh && ./add_agent.sh
           make
 
       - name: Package Release
